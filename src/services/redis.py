@@ -87,6 +87,7 @@ async def release_lock(resource: str, token: str) -> bool:
 # Hot stock balances  (Hash: product_id -> available_qty)
 # ---------------------------------------------------------------------------
 
+
 async def set_hot_stock(product_id: int, available: int) -> None:
     """Update the hot (in-memory) available stock for a product."""
     r = await get_redis()
