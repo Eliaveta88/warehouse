@@ -25,9 +25,7 @@ class Stock(Base):
     product_name: str = mapped_column(String(255), nullable=False)
     quantity_available: float = mapped_column(Float, nullable=False, default=0)
     quantity_reserved: float = mapped_column(Float, nullable=False, default=0)
-    unit_type: str = mapped_column(
-        String(50), nullable=False
-    )  # unit, kg, liter, piece, etc
+    unit_type: str = mapped_column(String(50), nullable=False)  # unit, kg, liter, piece, etc
     cell_location: str = mapped_column(String(100), nullable=False, index=True)
     expiry_date: datetime = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     batch_reference: str = mapped_column(String(100), nullable=False, index=True)
