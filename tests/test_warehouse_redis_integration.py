@@ -6,9 +6,36 @@ from fastapi import HTTPException
 
 from src.routers.v1.warehouse.actions import _receive_batch, _reserve_stock
 from src.routers.v1.warehouse.schemas import ReceiveRequest, ReserveRequest
+from src.config import redis_cfg
+from src.services import redis as redis_service
 
 
 class WarehouseRedisIntegrationTests(unittest.IsolatedAsyncioTestCase):
+    def test_redis_cfg_hardening_fields_present(self) -> None:
+        self.assertGreater(redis_cfg.socket_timeout_seconds, 0)
+        self.assertGreater(redis_cfg.socket_connect_timeout_seconds, 0)
+        self.assertGreater(redis_cfg.health_check_interval_seconds, 0)
+        self.assertGreater(redis_cfg.max_connections, 0)
+
+    async def test_get_redis_uses_from_url_with_hardening_kwargs(self) -> None:
+        redis_service._pool = None
+        fake_client = AsyncMock()
+        with patch(
+            "src.services.redis.aioredis.from_url",
+            return_value=fake_client,
+        ) as from_url_mock:
+            client = await redis_service.get_redis()
+        self.assertIs(client, fake_client)
+        from_url_mock.assert_called_once_with(
+            redis_cfg.url,
+            decode_responses=redis_cfg.decode_responses,
+            socket_timeout=redis_cfg.socket_timeout_seconds,
+            socket_connect_timeout=redis_cfg.socket_connect_timeout_seconds,
+            health_check_interval=redis_cfg.health_check_interval_seconds,
+            max_connections=redis_cfg.max_connections,
+        )
+        redis_service._pool = None
+
     async def test_reserve_stock_lock_conflict_returns_409(self) -> None:
         dal = AsyncMock()
         reserve_req = ReserveRequest(product_id=1, quantity=5, order_id=2, unit_type="unit")
