@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.routers.v1.warehouse.models import Stock, Reservation, Batch
 from src.routers.v1.warehouse.schemas import (
     ReserveRequest,
-    ReleaseRequest,
     ReceiveRequest,
 )
 
@@ -108,9 +107,7 @@ class StockDAL:
 
         # 3. Mark reservation as cancelled
         await self.session.execute(
-            update(Reservation)
-            .where(Reservation.id == reservation_id)
-            .values(status="released")
+            update(Reservation).where(Reservation.id == reservation_id).values(status="released")
         )
 
         await self.session.flush()
