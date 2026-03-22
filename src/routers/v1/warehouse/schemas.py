@@ -11,9 +11,9 @@ class StockResponse(BaseModel):
 
     product_id: int = Field(..., description="Product ID")
     product_name: str = Field(..., description="Product name")
-    available: int = Field(..., ge=0, description="Available quantity")
-    reserved: int = Field(..., ge=0, description="Reserved quantity")
-    total: int = Field(..., ge=0, description="Total quantity")
+    available: float = Field(..., ge=0, description="Available quantity")
+    reserved: float = Field(..., ge=0, description="Reserved quantity")
+    total: float = Field(..., ge=0, description="Total quantity")
     expiry_date: datetime = Field(..., description="Batch expiry date")
     cell_location: str = Field(..., description="Warehouse cell location")
     batch_id: int = Field(..., description="Batch ID")

@@ -2,28 +2,7 @@
 
 from fastapi import APIRouter
 
-service_router = APIRouter(prefix="/warehouse", tags=["warehouse"])
-common_router = APIRouter(tags=["common"])
-v1_router = APIRouter()
-
-
-@common_router.get("/health", summary="Liveness probe")
-async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "warehouse"}
-
-
-@common_router.get("/ready", summary="Readiness probe")
-async def ready() -> dict[str, str]:
-    return {"status": "ready", "service": "warehouse"}
-
-
-@service_router.get("/ping", summary="Warehouse router ping")
-async def warehouse_ping() -> dict[str, str]:
-    return {"status": "ok", "module": "warehouse"}
-
-
-v1_router.include_router(common_router)
-v1_router.include_router(service_router)
+from src.routers.v1 import v1_router
 
 
 class Router:
