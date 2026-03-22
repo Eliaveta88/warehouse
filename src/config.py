@@ -38,5 +38,14 @@ class PostgresCfg(CfgBase):
     db_name: str = os.getenv("POSTGRES_DB", "warehouse")
 
 
+@dataclass
+class IntegrationCfg(CfgBase):
+    """HTTP integration with catalog (product names on receive)."""
+
+    catalog_base_url: str = os.getenv("CATALOG_BASE_URL", "http://localhost").rstrip("/")
+    http_timeout_seconds: float = float(os.getenv("INTEGRATION_HTTP_TIMEOUT", "5"))
+
+
 redis_cfg = RedisCfg()
 postgres_cfg = PostgresCfg()
+integration_cfg = IntegrationCfg()

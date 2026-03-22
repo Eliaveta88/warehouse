@@ -113,9 +113,8 @@ class StockDAL:
         await self.session.flush()
         return True
 
-    async def receive(self, receive_req: ReceiveRequest) -> dict:
+    async def receive(self, receive_req: ReceiveRequest, *, product_name: str) -> dict:
         """Receive new batch."""
-        # 1. Create Batch record
         batch = Batch(
             product_id=receive_req.product_id,
             quantity_received=receive_req.quantity,
@@ -127,11 +126,10 @@ class StockDAL:
         self.session.add(batch)
         await self.session.flush()
 
-        # 2. Create Stock record for this batch
         stock = Stock(
             batch_id=batch.id,
             product_id=receive_req.product_id,
-            product_name="Unknown",  # TODO: Fetch from catalog
+            product_name=product_name,
             quantity_available=receive_req.quantity,
             quantity_reserved=0,
             unit_type=receive_req.unit_type,

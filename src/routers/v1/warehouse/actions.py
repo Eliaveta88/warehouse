@@ -2,9 +2,11 @@
 
 import logging
 
+import httpx
 from fastapi import HTTPException, status
 
 from src.routers.v1.warehouse.dal import StockDAL
+from src.services.catalog_client import fetch_product
 from src.routers.v1.warehouse.schemas import (
     ReserveRequest,
     ReserveResponse,
@@ -221,7 +223,20 @@ async def _receive_batch(
         )
 
     try:
-        batch = await dal.receive(receive_req)
+        try:
+            product = await fetch_product(receive_req.product_id)
+        except httpx.HTTPError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Catalog service unavailable: {exc}",
+            ) from exc
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Product {receive_req.product_id} not found in catalog",
+            )
+        product_name = str(product["name"])
+        batch = await dal.receive(receive_req, product_name=product_name)
 
         try:
             await increment_hot_stock(receive_req.product_id, receive_req.quantity)
