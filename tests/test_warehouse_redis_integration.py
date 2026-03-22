@@ -94,6 +94,11 @@ class WarehouseRedisIntegrationTests(unittest.IsolatedAsyncioTestCase):
         with (
             patch.object(
                 warehouse_actions,
+                "fetch_product",
+                new=AsyncMock(return_value={"id": 10, "name": "Test Product"}),
+            ),
+            patch.object(
+                warehouse_actions,
                 "acquire_lock",
                 new=AsyncMock(return_value="token-1"),
             ),
