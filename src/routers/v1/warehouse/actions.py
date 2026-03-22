@@ -61,7 +61,6 @@ async def _reserve_stock(
     """Reserve stock using FEFO algorithm."""
     resource = f"product:{reserve_req.product_id}"
     lock_token: str | None = None
-    lock_available = True
 
     try:
         lock_token = await acquire_lock(resource)
@@ -70,24 +69,21 @@ async def _reserve_stock(
                 "lock_failed for stock reservation",
                 extra={"event": "lock_failed", "resource": resource},
             )
-            lock_available = False
-        else:
-            logger.info(
-                "lock_acquired for stock reservation",
-                extra={"event": "lock_acquired", "resource": resource},
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Stock is being updated, retry later",
             )
+        logger.info(
+            "lock_acquired for stock reservation",
+            extra={"event": "lock_acquired", "resource": resource},
+        )
+    except HTTPException:
+        raise
     except Exception:
-        # Keep API functional even when Redis is unavailable.
+        # Keep API functional even when Redis is unavailable (reserve without lock).
         logger.exception(
             "redis_error while acquiring reservation lock",
             extra={"event": "redis_error", "resource": resource},
-        )
-        lock_available = False
-
-    if lock_token is None and lock_available:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Stock is being updated, retry later",
         )
 
     try:
@@ -199,7 +195,6 @@ async def _receive_batch(
     """Receive new batch with expiry tracking."""
     resource = f"product:{receive_req.product_id}"
     lock_token: str | None = None
-    lock_available = True
 
     try:
         lock_token = await acquire_lock(resource)
@@ -208,23 +203,21 @@ async def _receive_batch(
                 "lock_failed for receive batch",
                 extra={"event": "lock_failed", "resource": resource},
             )
-            lock_available = False
-        else:
-            logger.info(
-                "lock_acquired for receive batch",
-                extra={"event": "lock_acquired", "resource": resource},
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Stock is being updated, retry later",
             )
+        logger.info(
+            "lock_acquired for receive batch",
+            extra={"event": "lock_acquired", "resource": resource},
+        )
+    except HTTPException:
+        raise
     except Exception:
+        # Degraded: Redis down — receive without lock (same idea as list_stock warm-up).
         logger.exception(
             "redis_error while acquiring receive lock",
             extra={"event": "redis_error", "resource": resource},
-        )
-        lock_available = False
-
-    if lock_token is None and lock_available:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Stock is being updated, retry later",
         )
 
     try:
