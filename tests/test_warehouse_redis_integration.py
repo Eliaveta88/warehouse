@@ -1,9 +1,17 @@
+"""Тесты Redis/локов без реального Redis (CI).
+
+Используем patch.object на модуле ``src.routers.v1.warehouse.actions``, куда
+``from src.services.redis import acquire_lock`` привязал имена — так моки
+гарантированно видит ``_reserve_stock`` / ``_receive_batch``.
+"""
+
 import unittest
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
 
 from fastapi import HTTPException
 
+import src.routers.v1.warehouse.actions as warehouse_actions
 from src.routers.v1.warehouse.actions import _receive_batch, _reserve_stock
 from src.routers.v1.warehouse.schemas import ReceiveRequest, ReserveRequest
 from src.config import redis_cfg
@@ -37,17 +45,37 @@ class WarehouseRedisIntegrationTests(unittest.IsolatedAsyncioTestCase):
         redis_service._pool = None
 
     async def test_reserve_stock_lock_conflict_returns_409(self) -> None:
+        """Нет лока → 409; без реального Redis (моки на модуле actions)."""
         dal = AsyncMock()
         reserve_req = ReserveRequest(product_id=1, quantity=5, order_id=2, unit_type="unit")
-        with patch(
-            "src.routers.v1.warehouse.actions.acquire_lock",
-            new=AsyncMock(return_value=None),
+        with (
+            patch.object(
+                warehouse_actions,
+                "acquire_lock",
+                new=AsyncMock(return_value=None),
+            ),
+            patch.object(
+                warehouse_actions,
+                "get_hot_stock",
+                new=AsyncMock(return_value=None),
+            ),
+            patch.object(
+                warehouse_actions,
+                "release_lock",
+                new=AsyncMock(return_value=True),
+            ),
+            patch.object(
+                warehouse_actions,
+                "decrement_hot_stock",
+                new=AsyncMock(return_value=0),
+            ),
         ):
             with self.assertRaises(HTTPException) as ctx:
                 await _reserve_stock(reserve_req, dal)
         self.assertEqual(ctx.exception.status_code, 409)
 
     async def test_receive_batch_fallbacks_to_set_hot_stock(self) -> None:
+        """increment падает → fallback set_hot_stock; без реального Redis."""
         dal = AsyncMock()
         dal.receive.return_value = {
             "batch_id": 1,
@@ -64,20 +92,24 @@ class WarehouseRedisIntegrationTests(unittest.IsolatedAsyncioTestCase):
             batch_reference="B-1",
         )
         with (
-            patch(
-                "src.routers.v1.warehouse.actions.acquire_lock",
+            patch.object(
+                warehouse_actions,
+                "acquire_lock",
                 new=AsyncMock(return_value="token-1"),
             ),
-            patch(
-                "src.routers.v1.warehouse.actions.release_lock",
+            patch.object(
+                warehouse_actions,
+                "release_lock",
                 new=AsyncMock(return_value=True),
             ),
-            patch(
-                "src.routers.v1.warehouse.actions.increment_hot_stock",
+            patch.object(
+                warehouse_actions,
+                "increment_hot_stock",
                 new=AsyncMock(side_effect=RuntimeError("redis err")),
             ),
-            patch(
-                "src.routers.v1.warehouse.actions.set_hot_stock",
+            patch.object(
+                warehouse_actions,
+                "set_hot_stock",
                 new=AsyncMock(),
             ) as set_mock,
         ):
