@@ -6,9 +6,22 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.core import get_async_session
-from src.routers.v1.warehouse.actions import _list_stock, _receive_batch
+from src.routers.v1.warehouse.actions import (
+    _list_stock,
+    _receive_batch,
+    _release_stock,
+    _reserve_stock,
+)
 from src.routers.v1.warehouse.dal import StockDAL
-from src.routers.v1.warehouse.schemas import ReceiveBatchResponse, ReceiveRequest, StockListResponse
+from src.routers.v1.warehouse.schemas import (
+    ReceiveBatchResponse,
+    ReceiveRequest,
+    ReleaseRequest,
+    ReleaseResponse,
+    ReserveRequest,
+    ReserveResponse,
+    StockListResponse,
+)
 
 warehouse_router = APIRouter(prefix="/warehouse", tags=["warehouse"])
 
@@ -49,3 +62,36 @@ async def receive_batch(
     dal: StockDAL = Depends(get_dal),
 ) -> ReceiveBatchResponse:
     return await _receive_batch(body, dal)
+
+
+@warehouse_router.post(
+    "/stock/reserve",
+    response_model=ReserveResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Зарезервировать сток (FEFO)",
+    description=(
+        "Создаёт резерв на товар в пользу указанного order_id. Выбор партии — "
+        "по правилу FEFO (первая по сроку годности). Возвращает `reservation_id` для "
+        "последующего освобождения через `/stock/release`."
+    ),
+)
+async def reserve_stock(
+    body: ReserveRequest,
+    dal: StockDAL = Depends(get_dal),
+) -> ReserveResponse:
+    return await _reserve_stock(body, dal)
+
+
+@warehouse_router.post(
+    "/stock/release",
+    response_model=ReleaseResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Освободить резерв",
+    description="Снимает ранее сделанный резерв по `reservation_id`.",
+)
+async def release_stock(
+    body: ReleaseRequest,
+    dal: StockDAL = Depends(get_dal),
+) -> ReleaseResponse:
+    result = await _release_stock(body, dal)
+    return ReleaseResponse(**result)
